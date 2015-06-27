@@ -1,6 +1,8 @@
 CleanBox for Gmail
 ==================
 
+## Please don't try to use this yet as I haven't finished cleaning the code and testing.
+
 Inbox zero script and methodology. This is a Google Apps Script.
 
 ## Installation
