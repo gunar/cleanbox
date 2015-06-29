@@ -12,11 +12,19 @@ Inbox zero script and methodology. This is a Google Apps Script.
  - moveUnreadToInbox every 5 minutes;
  - archiveAllReadThreads every minute;
  - updateSnoozerLabels at midnight;
- - clearSnoozeFromRespondedThreads every minute.
+ - unsnoozeThreadsWithResponse every minute.
+
+## Features
+
+- Snooze
+- Mute
 
 ## Methodology
 
 - To be written.
+
+Muted and snoozed threads are kept muted until end of snooze time.
+Muted threads without snooze are muted forever.
 
 ### Sketch
 
