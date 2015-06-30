@@ -30,22 +30,33 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 */
 
-/***************************** VARIABLES *****************************/
+/**
+ * 
+ *                         USER DEFINITIONS
+ *
+ */
+
 /*
  * SNOOZER_PREFIX (category) for snooze labels.
  * E.g.: _snooze/1d, _snooze/2d
  */
 var SNOOZER_PREFIX = '_snooze';
-/* TODO */
-/* ---------------- BOOMERANG ALL SENT MAIL ----------------------- */
-  
+
+/* How many days back should the script search for sent mails to be labeled. */  
 var DAYS_TO_SEARCH = 10;
-/* exclude multi-message conversations where I sent the last message?  */
+/* Snooze (boomerang) sent mail only if it's not a thread. */
 var SINGLE_MESSAGE_ONLY = false; 
+/* How many days to wait for a response before coming back to inbox. */
 var DAYS_TO_WAIT = 7;
 
+/* This is used to parse the sender's mail address. Should be okay like this. */
 var EMAIL_REGEX = /[a-zA-Z0-9\._\-]+@[a-zA-Z0-9\.\-]+\.[a-z\.A-Z]+/g;
 
+/**
+ * 
+ *                            FUNCTIONS
+ *
+ */
 
 
 /**
