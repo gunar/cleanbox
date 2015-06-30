@@ -252,7 +252,7 @@ function updateSnoozerLabels()
         labelName = userlabels[k].getName();
 
         /* Ignore non-snoozer related labels */
-        if (isSnoozerLabel( labelName ))
+        if (!isSnoozerLabel( labelName ))
         {
             continue;
         }
