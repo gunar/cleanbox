@@ -40,10 +40,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * SNOOZER_PREFIX (category) for snooze labels.
  * E.g.: _snooze/1d, _snooze/2d
  */
-var SNOOZER_PREFIX = '_snooze';
+var SNOOZER_PREFIX = '_';
 
 /* How many days back should the script search for sent mails to be labeled. */  
-var DAYS_TO_SEARCH = 10;
+var DAYS_TO_SEARCH = 2;
 /* Snooze (boomerang) sent mail only if it's not a thread. */
 var SINGLE_MESSAGE_ONLY = false; 
 /* How many days to wait for a response before coming back to inbox. */
@@ -58,6 +58,25 @@ var EMAIL_REGEX = /[a-zA-Z0-9\._\-]+@[a-zA-Z0-9\.\-]+\.[a-z\.A-Z]+/g;
  *
  */
 
+
+/**
+ * Executes functions every minute.
+ * @returns null
+ */
+function minuteTimer()
+{
+    archiveAllReadThreads();
+    unsnoozeThreadsWithResponse();
+}
+
+/**
+ * Execute functions every days (midnight).
+ * @returns null
+ */
+function dailyTimer() {
+    snoozeAllSentMail();
+    updateSnoozerLabels();
+}
 
 /**
  * Checks if an label belogs to the snoozer.
@@ -97,27 +116,9 @@ function hasSnoozerLabel ( labels )
  */
 function archiveAllReadThreads ()
 {
-    var readThreads = GmailApp.search('label:inbox is:read');
-    for (var i = 0; i < readThreads.length; i++) {
-        readThreads[i].moveToArchive();
-    }
-}
-
-/**
- * Move all unread threads to inbox. Why? This script archives the message while
- * you are reading it, so this way if you mark it unread it'll stay in inbox.
- * @return null
- */
-function moveUnreadToInbox()
-{
-    var searchString = "is:unread";
+    var searchString = 'in:inbox is:read';
     threads = GmailApp.search(searchString);
-    for (var i = 0; i < threads.length; i++)
-    {
-        var thread = threads[i];
-        GmailApp.markThreadUnread(thread);
-        GmailApp.moveThreadToInbox(thread);
-    }
+    GmailApp.moveThreadsToArchive(threads);
 }
 
 /**
@@ -126,6 +127,10 @@ function moveUnreadToInbox()
  */
 function isThisEmailAddressMine ( addr )
 {
+    if (Session.getActiveUser().getEmail() == addr)
+    {
+      return true;
+    }
     aliases = GmailApp.getAliases();
     for (i=0; i < aliases.length; i++)
     {
@@ -144,9 +149,8 @@ function isThisEmailAddressMine ( addr )
 function snoozeAllSentMail()
 {
     /* GmailApp.createLabel creates a new label only if it doesn't exist. */
-    var newLabel = GmailApp.createLabel(SNOOZER_PREFIX + '/' + DAYS_TO_WAIT + 'd');
+    var newLabel = GmailApp.createLabel(SNOOZER_PREFIX + '/' + DAYS_TO_WAIT);
     var snoozerLabel = GmailApp.createLabel(SNOOZER_PREFIX);
-    var autoSnoozeLabel = GmailApp.createLabel('autoSnooze');
 
     /* All sent messages from initialDate on will me marked. */
     var initialDate = new Date();
@@ -170,7 +174,6 @@ function snoozeAllSentMail()
                 {
                     newLabel.addToThread(thread);
                     snoozerLabel.addToThread(thread);
-                    autoSnoozeLabel.addToThread(thread);
                 }
             }
         }
@@ -178,7 +181,7 @@ function snoozeAllSentMail()
 }
 
 /**
- * Translates YYYY-mm-dd to the "_d" pattern.
+ * Translates YYYY-mm-dd to the number of days.
  * @return null
  */
 function translateLabels()
@@ -221,7 +224,7 @@ function translateLabels()
 
 
         inDays = parseInt((date - now)/(24*3600*1000));
-        var newLabelName = SNOOZER_PREFIX + '/' + inDays + 'd';
+        var newLabelName = SNOOZER_PREFIX + '/' + inDays;
         newLabel = GmailApp.createLabel(newLabelName);
 
         var messages = userlabels[k].getThreads();
@@ -264,14 +267,14 @@ function updateSnoozerLabels()
         }
 
         label = labelName.substring(SNOOZER_PREFIX.length);
-        /* If label matches the "_d" pattern */
-        numOfDays = label.match(/([0-9]+)d/m);
+        /* If label matches a number of days */
+        numOfDays = label.match(/([0-9]+)/m);
         if (numOfDays)
         {
             var threads = userlabels[k].getThreads();
             if (threads.length == 0)
             {
-                /* We could delte the label here. No threads left. */
+                /* We could delete the label here. No threads left. */
                 continue;
             }
 
@@ -283,13 +286,12 @@ function updateSnoozerLabels()
             {
                 /* Unmute if it was muted. */
                 labelMute.removeFromThreads(threads);
-                GmailApp.markThreadsUnread(threads);
-                //GmailApp.moveThreadsToInbox(threads);
+                GmailApp.markThreadsUnread(threads).moveThreadsToInbox(threads);
                 snoozerLabel.addToThreads(threads);
             }
             else
             {
-                var newLabelName = SNOOZER_PREFIX + '/' + (numOfDays[1]-1) + 'd';
+                var newLabelName = SNOOZER_PREFIX + '/' + (numOfDays[1]-1)
                 GmailApp.createLabel(newLabelName).addToThreads(threads);
             }
             /* Remove old label from threads with new label. */
