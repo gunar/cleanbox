@@ -132,7 +132,7 @@ function hasSnoozerLabel ( labels )
 function archiveAllReadThreads ()
 {
     var searchString = 'in:inbox is:read';
-    threads = GmailApp.search(searchString);
+    var threads = GmailApp.search(searchString);
     GmailApp.moveThreadsToArchive(threads);
 }
 
@@ -147,7 +147,7 @@ function markSnoozedUnread ()
         if ( isSnoozerLabel( labelName ))
         {
             var searchString = 'label:' + labelName;
-            threads = GmailApp.search( searchString );
+            var threads = GmailApp.search( searchString );
             GmailApp.markThreadsUnread( threads );
         }
     });
@@ -239,19 +239,16 @@ function updateSnoozerLabels()
         /* Parse YYYY-mm-dd and YY-mm-dd date formats. */
         if (!!fullDate)
         {
-            d = fullDate[3];
-            m = parseInt(fullDate[2])-1;
+            var d = fullDate[3];
+            var m = parseInt(fullDate[2])-1;
+            var y = fullDate[1];
             if (fullDate[1].length == 2)
             {
                 /* WARNING: "20" will break in year 2100 ;-) */
-                y = "20" + fullDate[1];
-            }
-            else
-            {
-                y = fullDate[1];
+                y = "20" + y;
             }
 
-            date = new Date(y, m, d);
+            var date = new Date(y, m, d);
             var inDays = Math.ceil((date - today)/(24*60*60*1000));
             
             if (inDays <= 1)
