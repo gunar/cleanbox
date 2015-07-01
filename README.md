@@ -6,25 +6,28 @@ CleanBox for Gmail
 Inbox zero script and methodology. This is a Google Apps Script.
 This has kept me sane.
 
-But Google Inbox already has it? Well
+But now Google Inbox has it? Well, I don't like Inbox. I'm a power user and
+I want to do with my mail whatever I want. That being:
+
+- Auto-snoozing (boomerang) sent mail
+- Mute threads
+- Auto-archiving read mail
+- ...
 
 ## Installation
 
+- Create a new script in your GDrive
+- Copy and paste the contents of script.js
 - Set timers
- - snoozeAllSentMail every six hours;
- - moveUnreadToInbox every 5 minutes;
- - archiveAllReadThreads every minute;
- - updateSnoozerLabels at midnight;
- - unsnoozeThreadsWithResponse every minute.
+ - minuteTimer every minute;
+ - dailyTimer at midnight.
+- Enjoy ;-)
 
-## Features
+## Methodology (unfinished)
 
-- Snooze
-- Mute
+Once you open an email, that's it. You have to take action, for it will be lost
+forever. All read mail are automagically archived.
 
-## Methodology
-
-- To be written.
 All sent mail is marked to come back to inbox after 10 days, unless marked with
 a different snooze date.
 
@@ -39,7 +42,7 @@ Muted threads without snooze are muted forever.
 - Valid snoozer labels:
  - YYYY-mm-dd
  - YY-mm-dd
- - d + "d"
+ - d
 
 ## Inspired by
 
@@ -52,13 +55,14 @@ Muted threads without snooze are muted forever.
 
 Not in any specific order.
 
-- Test!
-- Unite moveUnreadToInbox and clearSnoozeFromRespondedThread
+- Make all snoozed mail unread, so it shows on the labels bar
+- Test updateSnoozerLabels
+- Test YYYY-mm-dd
+- Create useful labels on first run
 - Get threads in "pages" (100 at a time)
-- Write methodology
-- Optional autoSnoozeLabel
+- Finish README.md
+ - Write methodology
 - Optional to delete empty labels
- - Not done this way today for easiness of typing
 
 ### Version 2.0
 
