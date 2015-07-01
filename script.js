@@ -1,32 +1,32 @@
 /*
 
-Copyright (c) 2015, Gunar Cassiano Gessner
-All rights reserved.
+   Copyright (c) 2015, Gunar Cassiano Gessner
+   All rights reserved.
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
+   Redistribution and use in source and binary forms, with or without
+   modification, are permitted provided that the following conditions are met:
 
-* Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
+ * Redistributions of source code must retain the above copyright notice, this
+ list of conditions and the following disclaimer.
 
-* Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
+ * Redistributions in binary form must reproduce the above copyright notice,
+ this list of conditions and the following disclaimer in the documentation
+ and/or other materials provided with the distribution.
 
-* Neither the name of Cleanbox nor the names of its
-  contributors may be used to endorse or promote products derived from
-  this software without specific prior written permission.
+ * Neither the name of Cleanbox nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 */
 
@@ -55,7 +55,7 @@ var SINGLE_MESSAGE_ONLY = false;
 var DAYS_TO_WAIT = 7;
 
 /* How many labels should we keep (represents number of days) */
-var MAX_LABELS = 14;
+var MAX_LABELS = 10;
 
 /**
  * 
@@ -73,7 +73,7 @@ var EMAIL_REGEX = /[a-zA-Z0-9\._\-]+@[a-zA-Z0-9\.\-]+\.[a-z\.A-Z]+/g;
 var DAY_REGEX = /[0-9]+/;
 
 /* Check of valid full date label. */
-var FULLDATE_REGEX = /([0-9]{2,4})-([0-9]{1,2})-([0-9]{1,2})/;
+var FULL_DATE_REGEX = /^([0-9]{2,4})-([0-9]{1,2})-([0-9]{1,2})$/;
 
 /**
  * 
@@ -138,7 +138,7 @@ function archiveAllReadThreads ()
 
 /**
  * Marks all snoozed mail as unread so the number of messages is shown on the left.
-  * @returns null
+ * @returns null
  */
 function markSnoozedUnread ()
 {
@@ -161,7 +161,7 @@ function isThisEmailAddressMine ( addr )
 {
     if (Session.getActiveUser().getEmail() == addr)
     {
-      return true;
+        return true;
     }
     return GmailApp.getAliases().some(function (e, i, a){
         return e == addr;
@@ -175,7 +175,6 @@ function isThisEmailAddressMine ( addr )
 function snoozeAllSentMail()
 {
     /* GmailApp.createLabel creates a new label only if it doesn't exist. */
-    var snoozerLabel = GmailApp.createLabel(SNOOZER_PREFIX);
     var newLabel = GmailApp.createLabel(SNOOZER_PREFIX + '/' + DAYS_TO_WAIT);
 
     var searchString = 'in:Sent -label:'+SNOOZER_PREFIX+' newer_than:' + DAYS_TO_SEARCH + 'd';
@@ -193,7 +192,6 @@ function snoozeAllSentMail()
             if (!hasSnoozerLabel(thread.getLabels()))
             {
                 newLabel.addToThread(thread);
-                snoozerLabel.addToThread(thread);
             }
         }
     });
@@ -218,7 +216,6 @@ function deleteLabel( numOfDays, label )
  */
 function updateSnoozerLabels()
 {
-    var snoozerLabel = GmailApp.createLabel(SNOOZER_PREFIX);
     var labelMute = GmailApp.createLabel(SNOOZER_MUTE_LABEL);
 
     GmailApp.getUserLabels().forEach(function (label, i, a){
@@ -231,16 +228,15 @@ function updateSnoozerLabels()
             return;
         }
 
-        var dateStr = labelName.substring(SNOOZER_PREFIX.length);
+        var dateStr = labelName.substring(SNOOZER_PREFIX.length +1);
+        var fullDate = dateStr.match(FULL_DATE_REGEX);
+        var numOfDays = dateStr.match(DAY_REGEX);
 
-        var fullDate = dateStr.match(FULLDATE_REGEX);
-        var numOfDays = dateStr.match(/([0-9]+)/)[1];
-
-        /* Parse YYYY-mm-dd and YY-mm-dd date formats. */
+        /* Parse YYYY-mm-dd and YY-mm-dd date pattern. */
         if (!!fullDate)
         {
             var d = fullDate[3];
-            var m = parseInt(fullDate[2])-1;
+            var m = parseInt(fullDate[2], 10)-1;
             var y = fullDate[1];
             if (fullDate[1].length == 2)
             {
@@ -249,28 +245,38 @@ function updateSnoozerLabels()
             }
 
             var date = new Date(y, m, d);
-            var inDays = Math.ceil((date - today)/(24*60*60*1000));
-            
+            var inDays = Math.ceil((date - new Date())/(24*60*60*1000));
             if (inDays <= 1)
             {
                 GmailApp.markThreadsUnread(threads).moveThreadsToInbox(threads);
             }
+            /* Keep the YYYY-mm-dd pattern */
+            else if (inDays > MAX_LABELS)
+            {
+                date.setDate(date.getDate() - 1);
+                var newLabelName = SNOOZER_PREFIX + '/' + date.toISOString().substring(0, 10);
+                GmailApp.createLabel( newLabelName ).addToThreads(threads);
+            }
+            /* Translate into the numOfDays pattern */
             else
             {
-                var newLabelName = SNOOZER_PREFIX + '/' + ( inDays-1 );
+                var newLabelName = SNOOZER_PREFIX + '/' + ( inDays );
                 GmailApp.createLabel(newLabelName).addToThreads(threads);
             }
 
             label.deleteLabel();
         }
         /* Parse a number-only label */
-        else if (numOfDays)
+        else if (!!numOfDays)
         {
+            numOfDays = numOfDays[1];
             if (threads.length == 0)
             {
                 deleteLabel( numOfDays, label );
                 return;
             }
+
+            label.removeFromThreads(threads);
 
             /**
              * Here we decrease the label number. When it reaches zero it's time
@@ -281,12 +287,11 @@ function updateSnoozerLabels()
                 /* Unmute if it was muted. */
                 labelMute.removeFromThreads(threads);
                 GmailApp.markThreadsUnread(threads).moveThreadsToInbox(threads);
-                snoozerLabel.addToThreads(threads);
             }
             else
             {
                 var newLabelName = SNOOZER_PREFIX + '/' + (numOfDays-1)
-                GmailApp.createLabel(newLabelName).addToThreads(threads);
+                    GmailApp.createLabel(newLabelName).addToThreads(threads);
             }
 
             deleteLabel( numOfDays, label );
@@ -295,6 +300,7 @@ function updateSnoozerLabels()
         /* Invalid snoozer-related label. */
         else
         {
+
             if (threads.length == 0)
             {
                 label.deleteLabel();
@@ -332,7 +338,7 @@ function unsnoozeThreadsWithResponse ()
                 return;
             }
 
-            if (isSnoozerLabel(labelName))
+            if (isSnoozerLabel( labelName ))
             {
                 if (muted)
                 {
@@ -344,6 +350,6 @@ function unsnoozeThreadsWithResponse ()
                     label.removeFromThread(thread);
                 }
             }
-        }
-    }
+        });
+    });
 }
