@@ -54,6 +54,9 @@ var SINGLE_MESSAGE_ONLY = false;
 /* How many days to wait for a response before coming back to inbox. */
 var DAYS_TO_WAIT = 7;
 
+/* How many labels should we keep (represents number of days) */
+var MAX_LABELS = 14;
+
 /**
  * 
  *                            CONSTANT
@@ -97,7 +100,6 @@ function minuteTimer()
 function dailyTimer() {
     snoozeAllSentMail();
     updateSnoozerLabels();
-    // TODO clearEmptyInvalidLabels();
 }
 
 /**
@@ -198,79 +200,30 @@ function snoozeAllSentMail()
 }
 
 /**
- * Translates YYYY-mm-dd to the number of days.
- * @return null
+ * Deletes label if exceeding limit.
+ * @returns null
  */
-function translateLabels()
+function deleteLabel( numOfDays, label )
 {
-    GmailApp.getUserLabels().forEach(function (label, i, a){
-        var labelName = label.getName();
-        var threads = label.getThreads();
-
-        if (!isSnoozerLabel(labelName))
-        {
-            return;
-        }
-
-        if (labelName == SNOOZER_MUTE_LABEL)
-        {
-            return;
-        }
-
-        var dateStr = labelName.substring(SNOOZER_PREFIX.length);
-        /* Parse YYYY-mm-dd and YY-mm-dd date formats. */
-        var matches = dateStr.match(FULLDATE_REGEX);
-
-        /* Ignore unmatched label. Invalid labels will be marked later on. */
-        if (!!!matches)
-        {
-            return;
-        }
-
-        d = matches[3];
-        m = parseInt(matches[2])-1;
-        if (matches[1].length == 2)
-        {
-            // WARNING: "20" will break in year 2100 ;-)
-            y = "20" + matches[1];
-        }
-        else
-        {
-            y = matches[1];
-        }
-
-        date = new Date(y, m, d);
-
-        // Move back to inbox if date is in the past
-        if (today > date)
-        {
-            GmailApp.markThreadsUnread(threads).moveThreadsToInbox(threads);
-            label.deleteLabel();
-            return;
-        }
-
-        var inDays = Math.ceil((date - today)/(24*60*60*1000));
-
-        var newLabelName = SNOOZER_PREFIX + '/' + inDays;
-        GmailApp.createLabel(newLabelName).addToThreads(threads);
-
+    if (numOfDays > MAX_LABELS)
+    {
         label.deleteLabel();
-    });
+    }
 }
-        
+
 /**
- * Decreases the number (representing days) in each label of the snoozer.
+ * Translate YYYY-mm-dd labels to a number of days and decreases the number
+ * (representing days) in each label of the snoozer.
  * @returns null
  */
 function updateSnoozerLabels()
 {
-    translateLabels();
-
     var snoozerLabel = GmailApp.createLabel(SNOOZER_PREFIX);
     var labelMute = GmailApp.createLabel(SNOOZER_MUTE_LABEL);
 
     GmailApp.getUserLabels().forEach(function (label, i, a){
-        labelName = label.getName();
+        var labelName = label.getName();
+        var threads = label.getThreads();
 
         /* Ignore mute and non-snoozer related labels */
         if  ((!isSnoozerLabel( labelName )) || (labelName == SNOOZER_MUTE_LABEL))
@@ -278,15 +231,47 @@ function updateSnoozerLabels()
             return;
         }
 
-        var threads = label.getThreads();
+        var dateStr = labelName.substring(SNOOZER_PREFIX.length);
 
-        /* If label matches a number of days */
-        numOfDays = labelName.substring(SNOOZER_PREFIX.length).match(/([0-9]+)/)[1];
-        if (numOfDays)
+        var fullDate = dateStr.match(FULLDATE_REGEX);
+        var numOfDays = dateStr.match(/([0-9]+)/)[1];
+
+        /* Parse YYYY-mm-dd and YY-mm-dd date formats. */
+        if (!!fullDate)
+        {
+            d = fullDate[3];
+            m = parseInt(fullDate[2])-1;
+            if (fullDate[1].length == 2)
+            {
+                /* WARNING: "20" will break in year 2100 ;-) */
+                y = "20" + fullDate[1];
+            }
+            else
+            {
+                y = fullDate[1];
+            }
+
+            date = new Date(y, m, d);
+            var inDays = Math.ceil((date - today)/(24*60*60*1000));
+            
+            if (inDays <= 1)
+            {
+                GmailApp.markThreadsUnread(threads).moveThreadsToInbox(threads);
+            }
+            else
+            {
+                var newLabelName = SNOOZER_PREFIX + '/' + ( inDays-1 );
+                GmailApp.createLabel(newLabelName).addToThreads(threads);
+            }
+
+            label.deleteLabel();
+        }
+        /* Parse a number-only label */
+        else if (numOfDays)
         {
             if (threads.length == 0)
             {
-                /* We could delete the label here. No threads left. */
+                deleteLabel( numOfDays, label );
                 return;
             }
 
@@ -307,21 +292,23 @@ function updateSnoozerLabels()
                 GmailApp.createLabel(newLabelName).addToThreads(threads);
             }
 
-            /* Remove old label from threads with new label. */
-            label.removeFromThreads(threads);
+            deleteLabel( numOfDays, label );
 
-            /* We could delete old label here. */
-            //label.deleteLabel(); 
         }
+        /* Invalid snoozer-related label. */
         else
         {
-            /* Certainly invalid label because translateLabel didn't recognize
-             * it either.
-             */
-            GmailApp.createLabel(SNOOZER_PREFIX + '/invalidLabel').addToThreads(threads);
-            GmailApp.markThreadsUnread(threads).moveThreadsToInbox(threads);
+            if (threads.length == 0)
+            {
+                label.deleteLabel();
+            }
+            else
+            {
+                GmailApp.createLabel(SNOOZER_PREFIX + '/invalidLabel').addToThreads(threads);
+                GmailApp.markThreadsUnread(threads).moveThreadsToInbox(threads);
+            }
         }
-    }
+    });
 }
 
 /**
