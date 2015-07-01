@@ -38,9 +38,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /*
  * SNOOZER_PREFIX (category) for snooze labels.
- * E.g.: _snooze/1d, _snooze/2d
+ * E.g.: _/1, _/2
  */
-var SNOOZER_PREFIX = '_snooze';
+var SNOOZER_PREFIX = '_';
 
 /* How many days back should the script search for sent mails to be labeled. */  
 var DAYS_TO_SEARCH = 10;
