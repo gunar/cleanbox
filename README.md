@@ -33,6 +33,9 @@ a different snooze date.
 
 All snoozed mail are marked unread so you can see them on the labels list.
 
+Having two snoozers on the same email should work okay. You'll get the email
+back to your inbox on both dates.
+
 Muted and snoozed threads are kept muted until end of snooze time.
 Muted threads without snooze are muted forever.
 
