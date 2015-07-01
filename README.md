@@ -31,6 +31,8 @@ forever. All read mail are automagically archived.
 All sent mail is marked to come back to inbox after 10 days, unless marked with
 a different snooze date.
 
+All snoozed mail are marked unread so you can see them on the labels list.
+
 Muted and snoozed threads are kept muted until end of snooze time.
 Muted threads without snooze are muted forever.
 
@@ -55,13 +57,10 @@ Muted threads without snooze are muted forever.
 
 Not in any specific order.
 
-- Make all snoozed mail unread, so it shows on the labels bar
-- Test updateSnoozerLabels
-- Test YYYY-mm-dd
 - Create useful labels on first run
 - Get threads in "pages" (100 at a time)
 - Finish README.md
- - Write methodology
+ - Finish methodology
 - Optional to delete empty labels
 
 ### Version 2.0
