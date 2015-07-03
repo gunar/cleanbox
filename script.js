@@ -42,38 +42,38 @@
  */
 SNOOZER_PREFIX = '_';
 
-/* Label defined as mute. It's going to be something like _/mute */
-MUTE_LABEL = 'mute';
-
-/* How many days back should the script search for sent mails to be labeled. */  
-var DAYS_TO_SEARCH = 2;
-
 /* Snooze (boomerang) sent mail only if it's not a thread. */
-var SINGLE_MESSAGE_ONLY = false; 
+SINGLE_MESSAGE_ONLY = false; 
 
 /* How many days to wait for a response before coming back to inbox. */
-var DAYS_TO_WAIT = 7;
+DAYS_TO_WAIT = 7;
 
 /* How many labels should we keep (represents number of days) */
-var MAX_LABELS = 10;
+MAX_LABELS = 10;
 
 /**
  * 
- *                            CONSTANT
+ *                        CONSTANT & VARIABLES
  *
  */
 
-/* Construct mute label */
-SNOOZER_MUTE_LABEL = SNOOZER_PREFIX+'/' + MUTE_LABEL;
+/* Label defined as mute. It's going to be something like _/mute */
+SNOOZER_MUTE_LABEL = SNOOZER_PREFIX+'/mute';
+
+/* How many days back should the script search for sent mails to be labeled. */  
+DAYS_TO_SEARCH = 2;
+
+/* Label to use when invalid label was set */
+LABEL_INVALID = SNOOZER_PREFIX + '/invalidLabel';
 
 /* This is used to parse the sender's mail address. Should be okay like this. */
-var EMAIL_REGEX = /[a-zA-Z0-9\._\-]+@[a-zA-Z0-9\.\-]+\.[a-z\.A-Z]+/g;
+EMAIL_REGEX = /[a-zA-Z0-9\._\-]+@[a-zA-Z0-9\.\-]+\.[a-z\.A-Z]+/g;
 
 /* Checks for valid "in x days" label. */
-var DAY_REGEX = /[0-9]+/;
+DAY_REGEX = /^[0-9]+$/;
 
 /* Check of valid full date label. */
-var FULL_DATE_REGEX = /^([0-9]{2,4})-([0-9]{1,2})-([0-9]{1,2})$/;
+FULLDATE_REGEX = /^([0-9]{2,4})-([0-9]{1,2})-([0-9]{1,2})$/;
 
 /**
  * 
@@ -88,18 +88,75 @@ var FULL_DATE_REGEX = /^([0-9]{2,4})-([0-9]{1,2})-([0-9]{1,2})$/;
  */
 function minuteTimer()
 {
-    archiveAllReadThreads();
+    // 2 service calls
+    archive( 'in:inbox is:read' );
+
+    // 2 service calls
+    archive( 'in:inbox label:' + SNOOZER_PREFIX + '/mute' );
+
+    // 1 service call + 1 per thread + 1 per thread label
     unsnoozeThreadsWithResponse();
-    markSnoozedUnread();
 }
 
 /**
- * Execute functions every days (midnight).
+ * Executes functions every hour.
  * @returns null
  */
-function dailyTimer() {
+function hourTimer()
+{
+
+    markSnoozedUnread();
+    updateSnoozerLabelsList();
+}
+
+/**
+ * Execute daily functions (at midnight).
+ * @returns null
+ */
+function dayTimer() {
     snoozeAllSentMail();
     updateSnoozerLabels();
+}
+
+/**
+ * Archives threads that match a search string
+ * @args Search string
+ * @return null
+ */
+function archive ( searchString )
+{
+    GmailApp.moveThreadsToArchive( GmailApp.search( searchString ) )
+}
+
+/**
+ * Removes snooze label if someone responded in the thread.
+ * @returns null
+ */
+function unsnoozeThreadsWithResponse ()
+{
+    var searchString = PropertiesService.getUserProperties().getProperty('SNOOZER_LABELS_SEARCH_STRING');
+    searchString = 'in:inbox AND (' + searchString + ') AND -label:' + SNOOZER_PREFIX + '/mute';
+
+    GmailApp.search(searchString).forEach(function (thread, i, a){
+        stripSnoozerLabels( thread );
+    });
+}
+
+/**
+ * Removes all snoozer-related labels from a thread
+ * @args Thread
+ * @returns null
+ */
+function stripSnoozerLabels ( thread )
+{
+    var labels = thread.getLabels();
+
+    labels.forEach(function (label, i, a){
+        if (isSnoozerLabel( label.getName() ))
+        {
+            label.removeFromThread(thread);
+        }
+    });
 }
 
 /**
@@ -113,59 +170,35 @@ function isSnoozerLabel ( labelName )
 }
 
 /**
- * Checks if an array has any valid snoozer labels.
- * @param Array of labels.
- * @return Boolean
- */
-function hasSnoozerLabel ( labels )
-{
-    return labels.some(function (e, i, a){
-        return isSnoozerLabel(e.getName());
-    });
-}
-
-/**
- * Archives read threads -- only threads in inbox because moveUnreadToInbox will
- * move them there anyway, so we save computational time ;-)
- * @return null
- */
-function archiveAllReadThreads ()
-{
-    var searchString = 'in:inbox is:read';
-    var threads = GmailApp.search(searchString);
-    GmailApp.moveThreadsToArchive(threads);
-}
-
-/**
  * Marks all snoozed mail as unread so the number of messages is shown on the left.
  * @returns null
  */
 function markSnoozedUnread ()
 {
-    GmailApp.getUserLabels().forEach(function (e, i, a){
-        var labelName = e.getName();
-        if ( isSnoozerLabel( labelName ))
+    GmailApp.getUserLabels().forEach(function (label, i, a){
+        if (isSnoozerLabel( label.getName() ))
         {
-            var searchString = 'label:' + labelName;
-            var threads = GmailApp.search( searchString );
-            GmailApp.markThreadsUnread( threads );
+            GmailApp.markThreadsUnread( label.getThreads() );
         }
     });
 }
 
 /**
- * Checks if an email address belogs to the current user.
- * @return Bolean
+ * Populates array of all snoozer related labels.
+ * @returns null
  */
-function isThisEmailAddressMine ( addr )
+function updateSnoozerLabelsList ()
 {
-    if (Session.getActiveUser().getEmail() == addr)
-    {
-        return true;
-    }
-    return GmailApp.getAliases().some(function (e, i, a){
-        return e == addr;
+    snoozerLabels = new Array();
+    GmailApp.getUserLabels().forEach(function (label, i, a){
+        var labelName = label.getName();
+        if (isSnoozerLabel( labelName ))
+        {
+            snoozerLabels.push('label:' + labelName);
+        }
     });
+    var searchString = snoozerLabels.join(' OR ');
+    PropertiesService.getUserProperties().setProperty('SNOOZER_LABELS_SEARCH_STRING', searchString);
 }
 
 /**
@@ -198,15 +231,30 @@ function snoozeAllSentMail()
 }
 
 /**
- * Deletes label if exceeding limit.
- * @returns null
+ * Checks if an email address belogs to the current user.
+ * @return Bolean
  */
-function deleteLabel( numOfDays, label )
+function isThisEmailAddressMine ( addr )
 {
-    if (numOfDays > MAX_LABELS)
+    if (Session.getActiveUser().getEmail() == addr)
     {
-        label.deleteLabel();
+        return true;
     }
+    return GmailApp.getAliases().some(function (e, i, a){
+        return e == addr;
+    });
+}
+
+/**
+ * Checks if an array has any valid snoozer labels.
+ * @param Array of labels.
+ * @return Boolean
+ */
+function hasSnoozerLabel ( labels )
+{
+    return labels.some(function (e, i, a){
+        return isSnoozerLabel(e.getName());
+    });
 }
 
 /**
@@ -229,12 +277,16 @@ function updateSnoozerLabels()
         }
 
         var dateStr = labelName.substring(SNOOZER_PREFIX.length +1);
-        var fullDate = dateStr.match(FULL_DATE_REGEX);
+        var fullDate = dateStr.match(FULLDATE_REGEX);
         var numOfDays = dateStr.match(DAY_REGEX);
 
-        /* Parse YYYY-mm-dd and YY-mm-dd date pattern. */
+        /* Parse YYYY-mm-dd and YY-mm-dd date formats. */
         if (!!fullDate)
         {
+            if (threads.length == 0)
+            {
+                label.deleteLabel();
+            }
             var d = fullDate[3];
             var m = parseInt(fullDate[2], 10)-1;
             var y = fullDate[1];
@@ -249,27 +301,20 @@ function updateSnoozerLabels()
             if (inDays <= 1)
             {
                 GmailApp.markThreadsUnread(threads).moveThreadsToInbox(threads);
-            }
-            /* Keep the YYYY-mm-dd pattern */
-            else if (inDays > MAX_LABELS)
-            {
-                date.setDate(date.getDate() - 1);
-                var newLabelName = SNOOZER_PREFIX + '/' + date.toISOString().substring(0, 10);
-                GmailApp.createLabel( newLabelName ).addToThreads(threads);
+                label.deleteLabel();
             }
             /* Translate into the numOfDays pattern */
-            else
+            else if (inDays <= MAX_LABELS)
             {
                 var newLabelName = SNOOZER_PREFIX + '/' + ( inDays );
                 GmailApp.createLabel(newLabelName).addToThreads(threads);
-            }
-
-            label.deleteLabel();
+                label.deleteLabel();
+            }            
         }
         /* Parse a number-only label */
         else if (!!numOfDays)
         {
-            numOfDays = numOfDays[1];
+            numOfDays = numOfDays[0];
             if (threads.length == 0)
             {
                 deleteLabel( numOfDays, label );
@@ -300,14 +345,13 @@ function updateSnoozerLabels()
         /* Invalid snoozer-related label. */
         else
         {
-
             if (threads.length == 0)
             {
                 label.deleteLabel();
             }
-            else
+            else if (labelName != LABEL_INVALID)
             {
-                GmailApp.createLabel(SNOOZER_PREFIX + '/invalidLabel').addToThreads(threads);
+                GmailApp.createLabel(LABEL_INVALID).addToThreads(threads);
                 GmailApp.markThreadsUnread(threads).moveThreadsToInbox(threads);
             }
         }
@@ -315,41 +359,13 @@ function updateSnoozerLabels()
 }
 
 /**
- * Removes snooze label if someone responded in the thread.
+ * Deletes label if exceeding limit.
  * @returns null
  */
-function unsnoozeThreadsWithResponse ()
+function deleteLabel( numOfDays, label )
 {
-    GmailApp.search('is:unread in:inbox').forEach(function (thread, i, a){
-        var labels = thread.getLabels();
-
-        /* Check if thread is muted. */
-        var muted = labels.some(function (e, i, a){
-            return e.getName() == SNOOZER_MUTE_LABEL;
-        });
-
-        /* Remove any snoozer related thread. */
-        labels.forEach(function (label, i, a){
-            var labelName = label.getName();
-
-            /* Skip label "mute" */
-            if (labelName == SNOOZER_MUTE_LABEL)
-            {
-                return;
-            }
-
-            if (isSnoozerLabel( labelName ))
-            {
-                if (muted)
-                {
-                    thread.moveToArchive();
-                    thread.markRead();
-                }
-                else
-                {
-                    label.removeFromThread(thread);
-                }
-            }
-        });
-    });
+    if (numOfDays > MAX_LABELS)
+    {
+        label.deleteLabel();
+    }
 }
