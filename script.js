@@ -1,32 +1,32 @@
 /*
 
-   Copyright (c) 2015, Gunar Cassiano Gessner
-   All rights reserved.
+Copyright (c) 2015, Gunar Cassiano Gessner
+All rights reserved.
 
-   Redistribution and use in source and binary forms, with or without
-   modification, are permitted provided that the following conditions are met:
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
 
- * Redistributions of source code must retain the above copyright notice, this
- list of conditions and the following disclaimer.
+* Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.
 
- * Redistributions in binary form must reproduce the above copyright notice,
- this list of conditions and the following disclaimer in the documentation
- and/or other materials provided with the distribution.
+* Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
 
- * Neither the name of Cleanbox nor the names of its
- contributors may be used to endorse or promote products derived from
- this software without specific prior written permission.
+* Neither the name of Cleanbox nor the names of its
+  contributors may be used to endorse or promote products derived from
+  this software without specific prior written permission.
 
- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
- FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 */
 
@@ -75,6 +75,9 @@ DAY_REGEX = /^[0-9]+$/;
 /* Check of valid full date label. */
 FULLDATE_REGEX = /^([0-9]{2,4})-([0-9]{1,2})-([0-9]{1,2})$/;
 
+/* Store all snoozer-related user labels */
+snoozerLabels = new Array()
+
 /**
  * 
  *                            FUNCTIONS
@@ -92,7 +95,7 @@ function minuteTimer()
     archive( 'in:inbox is:read' );
 
     // 2 service calls
-    archive( 'in:inbox label:' + SNOOZER_PREFIX + '/mute' );
+    archive( 'label:' + SNOOZER_PREFIX + '/mute' );
 
     // 1 service call + 1 per thread + 1 per thread label
     unsnoozeThreadsWithResponse();
@@ -104,7 +107,7 @@ function minuteTimer()
  */
 function hourTimer()
 {
-
+    
     markSnoozedUnread();
     updateSnoozerLabelsList();
 }
@@ -134,9 +137,11 @@ function archive ( searchString )
  */
 function unsnoozeThreadsWithResponse ()
 {
-    var searchString = PropertiesService.getUserProperties().getProperty('SNOOZER_LABELS_SEARCH_STRING');
-    searchString = 'in:inbox AND (' + searchString + ') AND -label:' + SNOOZER_PREFIX + '/mute';
-
+    var searchString = 'in:inbox ' + PropertiesService.getUserProperties().getProperty('SNOOZER_LABELS_SEARCH_STRING');
+  
+    // This is necessary because of https://github.com/gunar/cleanbox/issues/2
+    GmailApp.moveThreadsToInbox( GmailApp.search('in:inbox') );
+  
     GmailApp.search(searchString).forEach(function (thread, i, a){
         stripSnoozerLabels( thread );
     });
@@ -149,14 +154,14 @@ function unsnoozeThreadsWithResponse ()
  */
 function stripSnoozerLabels ( thread )
 {
-    var labels = thread.getLabels();
-
-    labels.forEach(function (label, i, a){
-        if (isSnoozerLabel( label.getName() ))
-        {
-            label.removeFromThread(thread);
-        }
-    });
+  var labels = thread.getLabels();
+  
+  labels.forEach(function (label, i, a){
+  if (isSnoozerLabel( label.getName() ))
+    {
+      label.removeFromThread(thread);
+    }
+  });
 }
 
 /**
@@ -194,7 +199,7 @@ function updateSnoozerLabelsList ()
         var labelName = label.getName();
         if (isSnoozerLabel( labelName ))
         {
-            snoozerLabels.push('label:' + labelName);
+          snoozerLabels.push('label:' + labelName);
         }
     });
     var searchString = snoozerLabels.join(' OR ');
@@ -238,7 +243,7 @@ function isThisEmailAddressMine ( addr )
 {
     if (Session.getActiveUser().getEmail() == addr)
     {
-        return true;
+      return true;
     }
     return GmailApp.getAliases().some(function (e, i, a){
         return e == addr;
@@ -320,7 +325,7 @@ function updateSnoozerLabels()
                 deleteLabel( numOfDays, label );
                 return;
             }
-
+          
             label.removeFromThreads(threads);
 
             /**
@@ -336,7 +341,7 @@ function updateSnoozerLabels()
             else
             {
                 var newLabelName = SNOOZER_PREFIX + '/' + (numOfDays-1)
-                    GmailApp.createLabel(newLabelName).addToThreads(threads);
+                GmailApp.createLabel(newLabelName).addToThreads(threads);
             }
 
             deleteLabel( numOfDays, label );
