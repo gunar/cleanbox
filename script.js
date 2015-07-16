@@ -91,6 +91,11 @@ snoozerLabels = new Array()
  */
 function minuteTimer()
 {
+  
+    // This is necessary because of issues #2 and #4
+    // 4 service calls
+    fixGmailLabels();
+    
     // 2 service calls
     archive( 'in:inbox is:read' );
 
@@ -132,16 +137,23 @@ function archive ( searchString )
 }
 
 /**
+ * "Fixes" the way Gmail treats labels in messages/threads. See #2 and #4.
+ * @returns null
+*/
+function fixGmailLabels ()
+{
+    GmailApp.markThreadsUnread( GmailApp.search( 'in:inbox is:unread' ) );
+    GmailApp.moveThreadsToInbox( GmailApp.search('in:inbox') );
+}
+
+/**
  * Removes snooze label if someone responded in the thread.
  * @returns null
  */
 function unsnoozeThreadsWithResponse ()
 {
     var searchString = 'in:inbox ' + PropertiesService.getUserProperties().getProperty('SNOOZER_LABELS_SEARCH_STRING');
-  
-    // This is necessary because of https://github.com/gunar/cleanbox/issues/2
-    GmailApp.moveThreadsToInbox( GmailApp.search('in:inbox') );
-  
+
     GmailApp.search(searchString).forEach(function (thread, i, a){
         stripSnoozerLabels( thread );
     });
